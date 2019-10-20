@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title> Leaflet Shades · Mapzen</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" />
+    <link rel="stylesheet" href="../src/css/leaflet-shades.css" />
+    <style>
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+
+
+
+      #events {
+        position: absolute;
+        z-index: 1000;
+        top: 10px;
+        right: 10px;
+        bottom: 30px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 7px;
+        padding-top: 10px;
+        width: 400px;
+        background: rgba(255,255,255,0.8);
+        line-height: 1.4;
+        font-family: sans-serif;
+        box-sizing: border-box;
+      }
+
+      .event {
+        background: rgba(0,0,0,0.2);
+        font-family: monospace;
+        color: darkblue;
+        padding: 3px;
+        margin: 2px;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="events"> 
+      <center> 
+        <b> 選取範圍的統計 </b> <br/>
+        <span class="description">在地圖上滑鼠拖曳選取範圍，按【ESC】取消</span>
+        <hr/>
+        <div class="chart-container row">
+          <canvas id="canvas_FigFtime" height="400">不同族群各時間點當下的人潮</canvas>
+        </div>
+        <hr/>
+        <div class="row">
+          <div style="width:50%;" id="fig_age" class="col chart-container">
+            <canvas id="canvas_FigAge" height="400"></canvas>
+          </div>
+          <div style="width:50%;" id="fig_gender" class="col chart-container">
+            <canvas id="canvas_FigGender" height="400"></canvas>
+          </div>
+        </div>
+        <div class="chart-container row">
+          <canvas id="canvas_figC" height="130">不同族群各時間點當下的人潮</canvas>
+        </div>
+      </center>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
+    <script src="../dist/leaflet-shades.js"></script>
+    <script src="../dist/leaflet-heat.js"></script>
+    <script src="../src/js/papaparse.min.js"></script>
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script> 
+    <script src="http://leaflet.github.io/Leaflet.markercluster/example/realworld.10000.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
+    <script src="../src/js/Chart.min.js"></script>
+    <script src="../src/js/utils.js"></script>
+
+    <script>
+      var map = L.map('map', {editable: true});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+      map.setView([25.115387, 121.511559], 13);
+      var r = map.editTools.startRectangle();
+
+      var tiles = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
+
+
+      // console.log(addressPoints)
+      addressPoints = addressPoints.map(function (p) { return [p[0], p[1]]; });
+      
+      // console.log(addressPoints)
+
+
+
+      // var heat = L.heatLayer(addressPoints,{
+      //   radius: 20,
+      //   blur: 15, 
+      //   maxZoom: 10,
+      //   max: 4.0,
+
+      //   gradient: {
+      //       '0': 'White',
+      //       '0.66': 'Yellow',
+      //       '1': 'Red'
+      //   }
+      // }).addTo(map);
+
+      var theNorthEast = ""
+      var theSouthWest=""
+
+
+      // var shades = new L.LeafletShades(); 
+      var shades = L.leafletShades();
+      var indexFtime = 8
+      shades.addTo(map);
+
+      shades.on("shades:bounds-changed", function(e) {
+        if(theNorthEast!=e.bounds._northEast || theSouthWest!=e.bounds._southWest){
+          theNorthEast=e.bounds._northEast
+          theSouthWest=e.bounds._southWest
+          var showItem = []
+          QueryTheBoundsPoint(theNorthEast,theSouthWest)
+        }
+      });
+
+
+      function QueryTheBoundsPoint(theNorthEast,theSouthWest){
+          var ftimeArr = {}
+          var ftimeList = { '0': 0,'1': 0,'2': 0,'3': 0,'4': 0,'5': 0,'6': 0,'7': 0,'8': 0,'9': 0,
+                            '10': 0,'11': 0,'12': 0,'13': 0,'14': 0,'15': 0,'16': 0,'17': 0,'18': 0,'19': 0,
+                            '20': 0,'21': 0,'22': 0,'23': 0}
+          var genderPie = {'男':0, '女':0}
+          var ageTypePie = {'20_29':0, '30_39':0, '40_49':0, '50_59':0, '60up':0}
+          var localList
+          for ( x_y in x_yIndex){
+            p_lat = parseFloat(x_y.split("_")[1])
+            p_lng = parseFloat(x_y.split("_")[0])
+            if (p_lat>=theSouthWest.lat && p_lat<=theNorthEast.lat && p_lng>=theSouthWest.lng && p_lng<=theNorthEast.lng ){
+              points = x_yIndex[x_y]
+              for ( p_index in points){
+                p= points[p_index]
+                if(p['ftime'] == indexFtime){
+                  ageTypePie[p['age_type']]+=p['avg_cnt']
+                  genderPie[p['gender']]+=p['avg_cnt']
+                }
+                ftimeList[p['ftime']]+=p['avg_cnt']
+              }
+            }
+          }
+          var lineDataOfFtime = []
+          for(var i=0; i<24; i++){
+            lineDataOfFtime.push(ftimeList[i.toString()])
+          }
+
+          pieDataOfAge = [ageTypePie['20_29'] , ageTypePie['30_39'] , ageTypePie['40_49'] , ageTypePie['50_59'] , ageTypePie['60up']]
+
+          pieDataOfGender = [genderPie['男'],genderPie['女']]
+          window.theFigFtime.data.datasets[0].data=lineDataOfFtime
+          window.theFigFtime.update()
+
+          window.theFigAge.data.datasets[0].data=pieDataOfAge
+          window.theFigAge.update()
+
+          window.theFigGender.data.datasets[0].data=pieDataOfGender
+          window.theFigGender.update()
+
+
+      }
+
+      function drawTheFigAge(){
+          var configFigAge = {
+            type: 'doughnut',
+            data: {
+              datasets: [{
+                data: [1,1,1,1,1],
+                backgroundColor: [
+                  window.chartColors.red,
+                  window.chartColors.orange,
+                  window.chartColors.yellow,
+                  window.chartColors.green,
+                  // window.chartColors.blue,
+                  window.chartColors.grey,
+                ],
+                label: '年齡層佔比'
+              }],
+              labels: ['20-29','30-39','40-49','50-59','60 up']
+            },
+            options: {
+              responsive: true,
+              legend: {
+                position: 'bottom',
+                labels: {
+                  fontSize: 9
+                }
+              },
+              title: {
+                display: true,
+                text: '年齡層佔比',
+                fontSize: 10
+              },
+              animation: {
+                animateScale: true,
+                animateRotate: true
+              }
+            }
+          };
+
+          var ctx_FigAge = document.getElementById('canvas_FigAge').getContext('2d');
+          window.theFigAge = new Chart(ctx_FigAge, configFigAge);
+      }
+
+
+      function drawTheFigGender(){
+          var configFigGender = {
+            type: 'doughnut',
+            data: {
+              datasets: [{
+                data: [1,1],
+                backgroundColor: [
+                  window.chartColors.blue,
+                  window.chartColors.red
+                ],
+                label: '年齡層佔比'
+              }],
+              labels: ['男','女']
+            },
+            options: {
+              responsive: true,
+              legend: {
+                position: 'bottom',
+                labels: {
+                  fontSize: 9
+                }
+              },
+              title: {
+                display: true,
+                text: '性別佔比',
+                fontSize: 10
+              },
+              animation: {
+                animateScale: true,
+                animateRotate: true
+              }
+            }
+          };
+
+          var ctx_FigGender = document.getElementById('canvas_FigGender').getContext('2d');
+          window.theFigGender = new Chart(ctx_FigGender, configFigGender);
+      }
+
+      function drawTheFigFtime(){
+          var timeFormat = 'HH:mm';
+          var color = Chart.helpers.color;
+          var configFigFtime = {
+            type: 'line',
+            data: {
+              labels: ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'],
+              datasets: [ {
+                label: "人數",
+                backgroundColor: color(window.chartColors.blue).alpha(0.5).rgbString(),
+                borderColor: window.chartColors.blue,
+                fill: false,
+                data: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+              }]
+            },
+            options: {
+              responsive: true,
+              title: {
+                display: true,
+                text: '各時間點當下的人潮',
+                fontSize: 10
+              },
+              tooltips: {
+                mode: 'index',
+                intersect: false
+              },
+              scales: {
+                xAxes: [{
+                  type: 'time',
+                  time: {
+                    parser: timeFormat,
+                    tooltipFormat: 'HH:mm'
+                  },
+                  scaleLabel: {
+                    display: false,
+                    labelString: '活動時間'
+                  },
+                  ticks: {
+                            fontSize: 9
+                        }
+                }],
+                yAxes: [{
+                  scaleLabel: {
+                    display: false,
+                  },
+                  ticks: {
+                            fontSize: 9
+                        }
+                }]
+              },
+              legend: {
+                      display:false,
+                      labels: {
+                           fontSize: 9
+                      }
+                  }
+            }
+          };
+          var ctx_FigFtime = document.getElementById('canvas_FigFtime').getContext('2d');
+          window.theFigFtime = new Chart(ctx_FigFtime, configFigFtime);
+      }
+
+      function removeShades(){
+        map.removeLayer(r)
+        map.removeLayer(shades)
+        r = map.editTools.startRectangle()
+        shades.addTo(map)
+      }
+
+      $(document).keydown(function(e) {
+          if (e.keyCode == 27) {
+              console.log("remove")
+              removeShades()
+              window.theFigFtime.data.datasets[0].data=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+              window.theFigFtime.update()
+
+              window.theFigAge.data.datasets[0].data=[1,1,1,1,1];
+              window.theFigAge.update()
+
+              window.theFigGender.data.datasets[0].data=[1,1];
+              window.theFigGender.update()
+          }
+      });
+
+
+      function showDataInMap(thePointLogs, indexTime){
+        thisPointLogs = thePointLogs[indexTime]
+        var showItemAll = []
+        for( itemP in thisPointLogs ){
+          xyArr = itemP.split("_")
+          x = xyArr[0]
+          y = xyArr[1]
+          thisWeight = thisPointLogs[itemP]
+          itemSeeeet = [y,x,thisWeight]
+          showItemAll.push(itemSeeeet)
+        }
+        showItemAll.push([1,1,maxVal])
+        showItemAll.push([2,1,minVal])
+        var heat = L.heatLayer(showItemAll,{
+          minOpacity: 0.5,
+          radius: 13,
+          blur: 15, 
+          maxZoom: 15,
+          max: maxVal,
+          gradient: {
+            0.4: 'blue', 0.6: 'lime', 1: 'red'
+          }
+          // gradient: {
+          //   '0': '#00DD8C',
+          //   '0.05': '#00D949',
+          //   '0.12': '#00D507',
+          //   '0.21': '#37D200',
+          //   '0.32': '#74CE00',
+          //   '0.45': '#AECA00',
+          //   '0.60': '#C6A500',
+          //   '0.75': '#C26800',
+          //   '1': '#BF2D00'
+          // }
+        }).addTo(map);
+        // console.log(thePointLogs)
+      }
+
+      var ftimeIndex = {}
+      var x_yIndex = {}
+      var maxVal = 1;
+      var minVal = 99999;
+
+      function autoLoadCSV(){
+        Papa.parse("../data/N_all_day.csv", {
+          download: true,
+          header: true,
+          dynamicTyping: true,
+          complete: function(results) {
+            csv = [];
+            if(results.meta.fields.indexOf("avg_cnt") == -1) {
+              for(idx in results.data) {
+                var row = results.data[idx];
+                // csv.push(new google.maps.LatLng(row["lat"], row["lon"]))
+              }
+            } else {
+              for(idx in results.data) {
+                var row = results.data[idx];
+                var x_y = row['x']+"_"+row['y']
+                var ftime = row['ftime']
+
+                if( ftime in ftimeIndex ){
+                  if(x_y in ftimeIndex[ftime]){
+                    ftimeIndex[ftime][x_y]+=parseInt(row['avg_cnt'], 10)
+                  }else{
+                    ftimeIndex[ftime][x_y]=parseInt(row['avg_cnt'], 10)
+                  }
+                }else{
+                  ftimeIndex[ftime] = {}
+                  ftimeIndex[ftime][x_y]=parseInt(row['avg_cnt'], 10)
+                }
+
+                if(x_y in x_yIndex){
+                  x_yIndex[x_y].push(row)
+                }else{
+                  x_yIndex[x_y] = [row]
+                }
+              }
+              
+              for(a in ftimeIndex){
+                for(b in ftimeIndex[a]){
+                  maxVal=maxVal<ftimeIndex[a][b]?ftimeIndex[a][b]:maxVal
+                  minVal=minVal>ftimeIndex[a][b]?ftimeIndex[a][b]:minVal
+                }
+              }
+
+              console.log("max:" +maxVal);
+              console.log("min:" +minVal);
+
+              showDataInMap(ftimeIndex, indexFtime );
+              return;
+            }
+
+          }
+        });
+      }
+
+    $(document).ready(function(){
+      autoLoadCSV();
+      drawTheFigFtime();
+      drawTheFigAge();
+      drawTheFigGender();
+      
+    });
+    </script>
+  </body>
+</html>
