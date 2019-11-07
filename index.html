@@ -208,20 +208,18 @@
 
               window.theFigGender.data.datasets[0].data=[1,1];
               window.theFigGender.update()
-              theNorthEast = {}
-              theSouthWest = {}
           }
       });
-
-      
       // gender drop down list change event
       $(document).on('change','#option_gender',function(){
       	console.log('gender change')
-      	QueryTheBoundsPoint()
+      	setTheSelectedClock(ftimeIndex,indexFtime)
+      	//QueryTheBoundsPoint()
       });
       $(document).on('change','#option_age',function(){
       	console.log('age change')
-      	QueryTheBoundsPoint()
+      	setTheSelectedClock(ftimeIndex,indexFtime)
+      	//QueryTheBoundsPoint()
       });
 
       var showItemAll = []
@@ -257,7 +255,7 @@
       if(eoe.length>1){
         startMap();
         $.fakeLoader({
-          timeToHide:3000,
+          timeToHide:20000,
           bgColor:"#34495e",
           spinner:"spinner3"
         });
@@ -266,7 +264,7 @@
         drawTheFigAge();
         drawTheFigGender();
         drawTheFigTotal();
-        // loadVillageData();
+        loadVillageData();
 
         if (eoe[5]=='a'){
           map.setView([25.115387 , 121.511559], 13);

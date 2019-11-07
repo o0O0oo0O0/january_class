@@ -15,37 +15,37 @@
             if (p_lat>=theSouthWest.lat && p_lat<=theNorthEast.lat && p_lng>=theSouthWest.lng && p_lng<=theNorthEast.lng ){
               points = x_yIndex[x_y]
               for ( p_index in points){
-                p = points[p_index]
-                if(p['ftime'] == indexFtime){
-                  if(((condition.gender == "") ||(condition.gender == p['gender'])) && ((condition.age == "") || (condition.age == ageStructure[p['age_type']])) ){
+                p= points[p_index]
+                
+                if(((condition.gender == "") ||(condition.gender == p['gender'])) && ((condition.age == "") || (condition.age == ageStructure[p['age_type']])) ){
+                  if(p['ftime'] == indexFtime){
                     ageTypePie[ageStructure[p['age_type']]]+=p['avg_cnt']
                     genderPie[p['gender']]+=p['avg_cnt']
                   }
-                }
-                if(((condition.gender == "") ||(condition.gender == p['gender'])) && ((condition.age == "") || (condition.age == ageStructure[p['age_type']])) ){
                   ftimeList[p['ftime']]+=p['avg_cnt']
                 }
+                
               }
             }
           }
 
-          // for ( x_y in x_yVillages){
-          //   p_lat = parseFloat(x_y.split("_")[1])
-          //   p_lng = parseFloat(x_y.split("_")[0])
-          //   if (p_lat>=theSouthWest.lat && p_lat<=theNorthEast.lat && p_lng>=theSouthWest.lng && p_lng<=theNorthEast.lng ){
-          //     villages = x_yVillages[x_y]
-          //     for ( p_village in villages){
-          //       v = villages[p_village]
-          //       if(v['ftime'] == indexFtime){
-          //         if(v['local_name'] in v_list){
-          //           v_list[v['local_name']]+=v['ccnt']
-          //         }else{
-          //           v_list[v['local_name']]=v['ccnt']
-          //         }
-          //       }
-          //     }
-          //   }
-          // }
+          for ( x_y in x_yVillages){
+            p_lat = parseFloat(x_y.split("_")[1])
+            p_lng = parseFloat(x_y.split("_")[0])
+            if (p_lat>=theSouthWest.lat && p_lat<=theNorthEast.lat && p_lng>=theSouthWest.lng && p_lng<=theNorthEast.lng ){
+              villages = x_yVillages[x_y]
+              for ( p_village in villages){
+                v = villages[p_village]
+                if(v['ftime'] == indexFtime){
+                  if(v['local_name'] in v_list){
+                    v_list[v['local_name']]+=v['ccnt']
+                  }else{
+                    v_list[v['local_name']]=v['ccnt']
+                  }
+                }
+              }
+            }
+          }
 
               
 
@@ -352,30 +352,60 @@
 
 
       function showDataInMap(thePointLogs, indexTime){
+        calculateMinMax(); 
+        var condition = getCondition();
+        var gender_list =[];
+        var age_list = [];
+        if(condition.gender == ""){
+          gender_list.push('男');
+          gender_list.push('女');
+        }else{
+          gender_list.push(condition.gender);
+        }
+        if(condition.age == ""){
+          age_list.push('20_49');
+          age_list.push('50up');
+        }else{
+          age_list.push(condition.age);
+        }
+
         thisPointLogs = thePointLogs[indexTime]
         showItemAll = []
+        
         for( itemP in thisPointLogs ){
+          var thisWeight = 0;
           xyArr = itemP.split("_")
           x = parseFloat(xyArr[0])
           y = parseFloat(xyArr[1])
-          thisWeight = parseInt(thisPointLogs[itemP])
+          for( var gender in thisPointLogs[itemP]){
+              if(gender_list.includes(gender)){
+                for(var age in thisPointLogs[itemP][gender]){
+                  if(age_list.includes(age)){
+                    thisWeight += parseInt(thisPointLogs[itemP][gender][age])
+                  }
+                }
+              }
+          }
+
           itemSeeeet = {lat: y , lng: x , count:thisWeight}
           showItemAll.push(itemSeeeet)
         }
         var testData = {max : maxVal , data:showItemAll}
-
+        //heatmapLayer.setData({max:0,data:[]})
         heatmapLayer.setData(testData)
       }
 
 
-
       function autoLoadCSV(){
+        
+        
         log1 = './logs/'+eoe[0]
         Papa.parse(log1, {
           download: true,
           header: true,
           dynamicTyping: true,
           complete: function(results) {
+            var totalNum = []
             csv = [];
             if(results.meta.fields.indexOf("avg_cnt") == -1) {
               for(idx in results.data) {
@@ -384,34 +414,35 @@
               }
             } else {
               for(idx in results.data) {
+                var ageStructure = {'20_29':'20_49', '30_39':'20_49', '40_49':'20_49', '50_59':'50up', '60up':'50up'}
                 var row = results.data[idx];
                 var x_y = row['x']+"_"+row['y']
                 var ftime = row['ftime']
-
+                var cnt = parseInt(row['avg_cnt'], 10)
+                // calculate cnt for totalNum
+                if(totalNum[ftime]){
+                  totalNum[ftime] += cnt
+                }else{
+                  totalNum[ftime] = cnt
+                }
+                // generate ftimeIndex for drawing heatmap
                 if( ftime in ftimeIndex ){
                   if(x_y in ftimeIndex[ftime]){
-                    ftimeIndex[ftime][x_y]+=parseInt(row['avg_cnt'], 10)
+                    ftimeIndex[ftime][x_y][row['gender']][ageStructure[row['age_type']]] += cnt
                   }else{
-                    ftimeIndex[ftime][x_y]=parseInt(row['avg_cnt'], 10)
+                    ftimeIndex[ftime][x_y]={'男':{'20_49':0,'50up':0},'女':{'20_49':0,'50up':0}}
+                    ftimeIndex[ftime][x_y][row['gender']][ageStructure[row['age_type']]] = cnt
                   }
                 }else{
                   ftimeIndex[ftime] = {}
-                  ftimeIndex[ftime][x_y]=parseInt(row['avg_cnt'], 10)
+                  ftimeIndex[ftime][x_y]={'男':{'20_49':0,'50up':0},'女':{'20_49':0,'50up':0}}
+                  ftimeIndex[ftime][x_y][row['gender']][ageStructure[row['age_type']]] = cnt
                 }
-
+                // generate x_yIndex for drawing charts
                 if(x_y in x_yIndex){
                   x_yIndex[x_y].push(row)
                 }else{
                   x_yIndex[x_y] = [row]
-                }
-              }
-              var totalNum = []
-              for(a in ftimeIndex){
-                totalNum[a]=0
-                for(b in ftimeIndex[a]){
-                  maxVal=maxVal<ftimeIndex[a][b]?ftimeIndex[a][b]:maxVal
-                  minVal=minVal>ftimeIndex[a][b]?ftimeIndex[a][b]:minVal
-                  totalNum[a]+=ftimeIndex[a][b]
                 }
               }
 
@@ -425,38 +456,73 @@
         });
       }
 
+      function calculateMinMax(){
+        var condition = getCondition();
+        maxVal = 1;
+        minVal = 99999999;
+        var gender_list =[];
+        var age_list = [];
+        if(condition.gender == ""){
+          gender_list.push('男');
+          gender_list.push('女');
+        }else{
+          gender_list.push(condition.gender);
+        }
+        if(condition.age == ""){
+          age_list.push('20_49');
+          age_list.push('50up');
+        }else{
+          age_list.push(condition.age);
+        }
+
+        for(var a in ftimeIndex){
+          for(var b in ftimeIndex[a]){
+            for(var gender in ftimeIndex[a][b]){
+              var counter =0;
+              if(gender_list.includes(gender)){
+                for(var age in ftimeIndex[a][b][gender]){
+                  if(age_list.includes(age)){
+                    counter+=ftimeIndex[a][b][gender][age];
+                  }
+                }
+              }
+              maxVal = maxVal<counter?counter:maxVal;
+              minVal = minVal>counter?counter:minVal;
+            }
+          }
+        }
+      }
 
 
+      function loadVillageData(){
+        villageFiles= [eoe[1],eoe[2],eoe[3],eoe[4]]
+        villageFiles.map((k)=>{
+          Papa.parse('./logs/'+k, {
+            download: true,
+            header: true,
+            dynamicTyping: true,
+            complete: function(results) {
+              csv = [];
+              if(results.meta.fields.indexOf("ccnt") == -1) {
+                for(idx in results.data) {
+                  var row = results.data[idx];
+                  // csv.push(new google.maps.LatLng(row["lat"], row["lon"]))
+                }
+              } else {
+                for(idx in results.data) {
+                  var row = results.data[idx];
+                  var x_y = row['x']+"_"+row['y']
+                  var ftime = row['ftime']
 
-      // function loadVillageData(){
-      //   villageFiles= [eoe[1],eoe[2],eoe[3],eoe[4]]
-      //   villageFiles.map((k)=>{
-      //     Papa.parse('./logs/'+k, {
-      //       download: true,
-      //       header: true,
-      //       dynamicTyping: true,
-      //       complete: function(results) {
-      //         csv = [];
-      //         if(results.meta.fields.indexOf("ccnt") == -1) {
-      //           for(idx in results.data) {
-      //             var row = results.data[idx];
-      //             // csv.push(new google.maps.LatLng(row["lat"], row["lon"]))
-      //           }
-      //         } else {
-      //           for(idx in results.data) {
-      //             var row = results.data[idx];
-      //             var x_y = row['x']+"_"+row['y']
-      //             var ftime = row['ftime']
-
-      //             if(x_y in x_yVillages){
-      //               x_yVillages[x_y].push(row)
-      //             }else{
-      //               x_yVillages[x_y] = [row]
-      //             }
-      //           }
-      //           return;
-      //         }
-      //       }
-      //     });
-      //   });
-      // }
+                  if(x_y in x_yVillages){
+                    x_yVillages[x_y].push(row)
+                  }else{
+                    x_yVillages[x_y] = [row]
+                  }
+                }
+                return;
+              }
+            }
+          });
+        });
+      }
