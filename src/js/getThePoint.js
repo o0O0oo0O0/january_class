@@ -1,12 +1,13 @@
-  
       function QueryTheBoundsPoint(){
           var ftimeArr = {}
           var ftimeList = { '0': 0,'1': 0,'2': 0,'3': 0,'4': 0,'5': 0,'6': 0,'7': 0,'8': 0,'9': 0,
                             '10': 0,'11': 0,'12': 0,'13': 0,'14': 0,'15': 0,'16': 0,'17': 0,'18': 0,'19': 0,
                             '20': 0,'21': 0,'22': 0,'23': 0}
           var genderPie = {'男':0, '女':0}
-          var ageTypePie = {'20_29':0, '30_39':0, '40_49':0, '50_59':0, '60up':0}
+          var ageTypePie = {'20_49':0, '50up':0}
+          var ageStructure = {'20_29':'20_49', '30_39':'20_49', '40_49':'20_49', '50_59':'50up', '60up':'50up'}
           var v_list = {}
+          var condition = getCondition();
 
           for ( x_y in x_yIndex){
             p_lat = parseFloat(x_y.split("_")[1])
@@ -14,35 +15,37 @@
             if (p_lat>=theSouthWest.lat && p_lat<=theNorthEast.lat && p_lng>=theSouthWest.lng && p_lng<=theNorthEast.lng ){
               points = x_yIndex[x_y]
               for ( p_index in points){
-                p= points[p_index]
+                p = points[p_index]
                 if(p['ftime'] == indexFtime){
-                  ageTypePie[p['age_type']]+=p['avg_cnt']
-                  genderPie[p['gender']]+=p['avg_cnt']
-                }
-                ftimeList[p['ftime']]+=p['avg_cnt']
-              }
-
-
-            }
-          }
-
-          for ( x_y in x_yVillages){
-            p_lat = parseFloat(x_y.split("_")[1])
-            p_lng = parseFloat(x_y.split("_")[0])
-            if (p_lat>=theSouthWest.lat && p_lat<=theNorthEast.lat && p_lng>=theSouthWest.lng && p_lng<=theNorthEast.lng ){
-              villages = x_yVillages[x_y]
-              for ( p_village in villages){
-                v = villages[p_village]
-                if(v['ftime'] == indexFtime){
-                  if(v['local_name'] in v_list){
-                    v_list[v['local_name']]+=v['ccnt']
-                  }else{
-                    v_list[v['local_name']]=v['ccnt']
+                  if(((condition.gender == "") ||(condition.gender == p['gender'])) && ((condition.age == "") || (condition.age == ageStructure[p['age_type']])) ){
+                    ageTypePie[ageStructure[p['age_type']]]+=p['avg_cnt']
+                    genderPie[p['gender']]+=p['avg_cnt']
                   }
                 }
+                if(((condition.gender == "") ||(condition.gender == p['gender'])) && ((condition.age == "") || (condition.age == ageStructure[p['age_type']])) ){
+                  ftimeList[p['ftime']]+=p['avg_cnt']
+                }
               }
             }
           }
+
+          // for ( x_y in x_yVillages){
+          //   p_lat = parseFloat(x_y.split("_")[1])
+          //   p_lng = parseFloat(x_y.split("_")[0])
+          //   if (p_lat>=theSouthWest.lat && p_lat<=theNorthEast.lat && p_lng>=theSouthWest.lng && p_lng<=theNorthEast.lng ){
+          //     villages = x_yVillages[x_y]
+          //     for ( p_village in villages){
+          //       v = villages[p_village]
+          //       if(v['ftime'] == indexFtime){
+          //         if(v['local_name'] in v_list){
+          //           v_list[v['local_name']]+=v['ccnt']
+          //         }else{
+          //           v_list[v['local_name']]=v['ccnt']
+          //         }
+          //       }
+          //     }
+          //   }
+          // }
 
               
 
@@ -51,7 +54,7 @@
             lineDataOfFtime.push(ftimeList[i.toString()])
           }
 
-          pieDataOfAge = [ageTypePie['20_29'] , ageTypePie['30_39'] , ageTypePie['40_49'] , ageTypePie['50_59'] , ageTypePie['60up']]
+          pieDataOfAge = [ageTypePie['20_49'] , ageTypePie['50up']]// , ageTypePie['40_49'] , ageTypePie['50_59'] , ageTypePie['60up']]
 
           pieDataOfGender = [genderPie['男'],genderPie['女']]
           window.theFigFtime.data.datasets[0].data=lineDataOfFtime
@@ -118,18 +121,18 @@
             type: 'doughnut',
             data: {
               datasets: [{
-                data: [1,1,1,1,1],
+                data: [1,1],
                 backgroundColor: [
-                  window.chartColors.red,
-                  window.chartColors.orange,
+                  //window.chartColors.red,
+                  //window.chartColors.orange,
                   window.chartColors.yellow,
-                  window.chartColors.green,
+                  //window.chartColors.green,
                   // window.chartColors.blue,
-                  window.chartColors.grey,
+                  window.chartColors.grey
                 ],
                 label: '年齡層佔比'
               }],
-              labels: ['20-29','30-39','40-49','50-59','60 up']
+              labels: ['20-49','50 up']//['20-29','30-39','40-49','50-59','60 up']
             },
             options: {
               responsive: true,
@@ -425,35 +428,35 @@
 
 
 
-      function loadVillageData(){
-        villageFiles= [eoe[1],eoe[2],eoe[3],eoe[4]]
-        villageFiles.map((k)=>{
-          Papa.parse('./logs/'+k, {
-            download: true,
-            header: true,
-            dynamicTyping: true,
-            complete: function(results) {
-              csv = [];
-              if(results.meta.fields.indexOf("ccnt") == -1) {
-                for(idx in results.data) {
-                  var row = results.data[idx];
-                  // csv.push(new google.maps.LatLng(row["lat"], row["lon"]))
-                }
-              } else {
-                for(idx in results.data) {
-                  var row = results.data[idx];
-                  var x_y = row['x']+"_"+row['y']
-                  var ftime = row['ftime']
+      // function loadVillageData(){
+      //   villageFiles= [eoe[1],eoe[2],eoe[3],eoe[4]]
+      //   villageFiles.map((k)=>{
+      //     Papa.parse('./logs/'+k, {
+      //       download: true,
+      //       header: true,
+      //       dynamicTyping: true,
+      //       complete: function(results) {
+      //         csv = [];
+      //         if(results.meta.fields.indexOf("ccnt") == -1) {
+      //           for(idx in results.data) {
+      //             var row = results.data[idx];
+      //             // csv.push(new google.maps.LatLng(row["lat"], row["lon"]))
+      //           }
+      //         } else {
+      //           for(idx in results.data) {
+      //             var row = results.data[idx];
+      //             var x_y = row['x']+"_"+row['y']
+      //             var ftime = row['ftime']
 
-                  if(x_y in x_yVillages){
-                    x_yVillages[x_y].push(row)
-                  }else{
-                    x_yVillages[x_y] = [row]
-                  }
-                }
-                return;
-              }
-            }
-          });
-        });
-      }
+      //             if(x_y in x_yVillages){
+      //               x_yVillages[x_y].push(row)
+      //             }else{
+      //               x_yVillages[x_y] = [row]
+      //             }
+      //           }
+      //           return;
+      //         }
+      //       }
+      //     });
+      //   });
+      // }

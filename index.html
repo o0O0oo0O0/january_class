@@ -91,6 +91,18 @@
       <div id="map"></div>
       <div id="events"> 
         <center> 
+          <b>年齡：</b>
+          <select id="option_age">
+          	<option value="">全選</option>
+          	<option value="20_49">20到49歲</option>
+          	<option value="50up">50以上</option>
+          </select>
+          <b>性別：</b>
+          <select id="option_gender">
+          	<option value="">全選</option>
+          	<option value="男">男性</option>
+          	<option value="女">女性</option>
+          </select> <br/>
           <b id="selectedClock">【00:00】</b>
           <b> 選取範圍的統計 </b> <br/>
           <span class="description">在地圖上滑鼠拖曳選取範圍，按【ESC】取消</span>
@@ -112,7 +124,7 @@
           </div>
           
         </center>
-        <div class="row" style="margin:5px">
+        <!-- <div class="row" style="margin:5px">
             <table class="table table-striped table-dark" >
               <thead>
                 <tr>
@@ -120,7 +132,6 @@
                   <th scope="col">行政區</th>
                   <th scope="col">人數</th>
                   <th scope="col">占比</th>
-                  <!-- <th scope="col">總占比</th> -->
                 </tr>
               </thead>
               <tbody id="villageTable">
@@ -129,7 +140,7 @@
                 </tr>
               </tbody>
             </table>
-          </div>
+          </div> -->
       </div>
       <div class="fakeLoader"></div>
     </div>
@@ -179,6 +190,7 @@
           theNorthEast=e.bounds._northEast
           theSouthWest=e.bounds._southWest
           var showItem = []
+          console.log('shades:bounds change')
           QueryTheBoundsPoint()
         }
       });
@@ -191,14 +203,26 @@
               window.theFigFtime.data.datasets[0].data=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
               window.theFigFtime.update()
 
-              window.theFigAge.data.datasets[0].data=[1,1,1,1,1];
+              window.theFigAge.data.datasets[0].data=[1,1];
               window.theFigAge.update()
 
               window.theFigGender.data.datasets[0].data=[1,1];
               window.theFigGender.update()
+              theNorthEast = {}
+              theSouthWest = {}
           }
       });
 
+      
+      // gender drop down list change event
+      $(document).on('change','#option_gender',function(){
+      	console.log('gender change')
+      	QueryTheBoundsPoint()
+      });
+      $(document).on('change','#option_age',function(){
+      	console.log('age change')
+      	QueryTheBoundsPoint()
+      });
 
       var showItemAll = []
 
@@ -233,7 +257,7 @@
       if(eoe.length>1){
         startMap();
         $.fakeLoader({
-          timeToHide:20000,
+          timeToHide:3000,
           bgColor:"#34495e",
           spinner:"spinner3"
         });
@@ -242,7 +266,7 @@
         drawTheFigAge();
         drawTheFigGender();
         drawTheFigTotal();
-        loadVillageData();
+        // loadVillageData();
 
         if (eoe[5]=='a'){
           map.setView([25.115387 , 121.511559], 13);
@@ -293,6 +317,13 @@
       var code = $("#inputCode").val()
       var f = $("input[name*=exampleRadios]:checked").val()
       load_js(code,f)
+    }
+    // get drop down list condition 
+    function getCondition(){
+    	var result = {};
+    	result['gender'] = $('#option_gender').val();
+    	result['age'] = $('#option_age').val();
+    	return result;
     }
 
     </script>
